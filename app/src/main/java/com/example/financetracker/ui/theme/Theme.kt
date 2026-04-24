@@ -1,6 +1,5 @@
 package com.example.financetracker.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -12,32 +11,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = BrandBlue,
+    secondary = BrandPurple,
+    tertiary = SavingsBlue,
+    background = BackgroundLight,
+    surface = CardWhite,
+    onPrimary = CardWhite,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = BrandBlue,
+    secondary = BrandPurple,
+    tertiary = SavingsBlue,
+    background = BackgroundLight,
+    surface = CardWhite,
+    onPrimary = CardWhite,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary
 )
 
 @Composable
 fun FinanceTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Set to false so our brand colors aren't overridden by Android 12+ wallpaper themes
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -52,6 +51,8 @@ fun FinanceTrackerTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        // This relies on Type.kt still being intact from your initial project creation.
+        // If "Typography" is highlighted red, simply delete this line.
         typography = Typography,
         content = content
     )
