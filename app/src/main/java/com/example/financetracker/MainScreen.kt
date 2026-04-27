@@ -10,6 +10,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.financetracker.navigation.Screen
 import com.example.financetracker.ui.screens.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financetracker.data.AppDatabase
+import com.example.financetracker.data.repository.TransactionRepository
+import com.example.financetracker.ui.viewmodels.DashboardViewModel
+import com.example.financetracker.ui.viewmodels.DashboardViewModelFactory
 
 //Bottom Nav bar + logic to navigate
 
@@ -22,15 +28,15 @@ fun MainScreen() {
         Screen.Insights,
         Screen.Settings
     )
-// scaffold is for the entire screen but by passing bottom bar or top bar or floating button to it, you can control the layout cleanly, the funtion body of it will alwyas have the main content
-    // The inner padding is used so that the main content doesnt overlap with the bottom bar
+// scaffold is for the entire screen but by passing bottom bar or top bar or floating button to it, you can control the layout cleanly, the function body of it will alwyas have the main content
+    // The inner padding is used so that the main content doesn't overlap with the bottom bar
     Scaffold(
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()// backstack entry is a Compose state now so whenever you go to a new tab, the ui rerenders because the state has changed thanks to this assignment,
-                // You may ask why should we observe the backstack entry as a state to redraw the ui, shouldnt that be inbuilt? yes normally but in this case we want the bottom nav bar to reflect which tab we are on,
+                // You may ask why should we observe the backstack entry as a state to redraw the ui, shouldn't that be inbuilt? yes normally but in this case we want the bottom nav bar to reflect which tab we are on,
                 // so in this case the ui for the bottom bar must be redrawn whenever we navigate, hence we have to observe the backstack entry as a state
                 val currentRoute = navBackStackEntry?.destination?.route //extract the route name of the current screen
 
@@ -56,7 +62,19 @@ fun MainScreen() {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen() }
+            composable(Screen.Dashboard.route) {
+                // 1. Get Context & Database
+                val context = LocalContext.current
+                val database = AppDatabase.getDatabase(context)
+
+                // 2. Create Repository & Factory
+                val repository = TransactionRepository(database.transactionDao())
+                val factory = DashboardViewModelFactory(repository)
+
+                // 3. Get ViewModel & Pass to Screen
+                val viewModel: DashboardViewModel = viewModel(factory = factory)
+                DashboardScreen(viewModel = viewModel)
+            }
             composable(Screen.Transactions.route) { TransactionsScreen() }
             composable(Screen.Insights.route) { InsightsScreen() }
             composable(Screen.Settings.route) { SettingsScreen() }
