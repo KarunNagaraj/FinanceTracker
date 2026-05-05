@@ -1,0 +1,62 @@
+package com.example.financetracker.utils
+
+
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.provider.Telephony
+import android.util.Log
+import com.example.financetracker.data.AppDatabase
+import com.example.financetracker.data.repository.TransactionRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class SmsReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        // Double-check we are actually receiving an SMS
+        if (intent.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+
+            // Extract the messages from the intent
+            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+
+            // Grab our database instance
+            val database = AppDatabase.getDatabase(context)
+            val repository = TransactionRepository(database.transactionDao())
+
+            // 1. Initialize our new ML Brain
+            val classifier = TransactionClassifier(context)
+
+            val pendingResult = goAsync()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    for (sms in messages) {
+                        val body = sms.displayMessageBody
+                        val timestamp = sms.timestampMillis
+
+                        // Send it to the Regex parser
+                        val parsedData = SmsParser.parseMessage(body, timestamp)
+
+                        if (parsedData != null) {
+                            // 2. Ask the ML model to categorize the merchant!
+                            val smartCategory = classifier.predictCategory(parsedData.rawDescription)
+
+                            // 3. Create the final transaction with the smart category
+                            val finalTransaction = parsedData.copy(category = smartCategory)
+
+                            repository.insertTransaction(finalTransaction)
+                            Log.d("SmsReceiver", "Saved: ${finalTransaction.rawDescription} as $smartCategory")
+                        }
+                    }} catch (e: Exception) {
+                    Log.e("SmsReceiver", "Error parsing SMS", e)
+                } finally {
+                    // Tell Android we are done, so it can put the receiver back to sleep
+                    pendingResult.finish()
+                }
+            }
+        }
+    }
+}

@@ -121,8 +121,8 @@ Implement the Room Database, Entities, and DAOs. Set up ViewModels for each scre
 Phase 3: SMS Ingestion & Regex Parsing
 Implement runtime permissions requests for READ_SMS and RECEIVE_SMS. Create a BroadcastReceiver to listen for incoming SMS messages. Create a utility using ContentResolver to optionally scan historical SMS messages. Write Regex logic to identify bank transactions, extract the amount, determine CREDIT/DEBIT type, and extract the merchant name. Save these parsed outputs to the Room database.
 
-Phase 4: CSV File System Backup/Restore
-Implement the Android Storage Access Framework intent to pick a .csv file via the Settings "Restore/Backup Data" buttons. Write the CSV parsing utility and save the parsed outputs into the Room database.
+Phase 4: CSV File System 
+implement analysis of financial data through ingesting the user uploaded bank statements
 
 Phase 5: The ML Integration
 Add TFLite dependencies. Load a dummy .tflite text classification model from the assets folder. Intercept the parsed SMS data and CSV data before it hits the database, run the rawDescription through the model to get a category prediction, append it to the transaction, and save it. Build the logic for the "Insights" screen based on the categorized data.

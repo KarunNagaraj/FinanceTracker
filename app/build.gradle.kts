@@ -68,4 +68,5 @@ dependencies {
 // Lifecycle & ViewModel Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
 }

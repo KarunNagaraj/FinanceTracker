@@ -14,10 +14,10 @@ class DashboardViewModel(private val repository: TransactionRepository) : ViewMo
 
     val totalExpenses: StateFlow<Double> = repository.totalExpensesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-    //statein is used to convert flow into state flow. Its paramters are first where state flow is tied to the viewmodel,
-    //meaning if viewmodel gets destroyed, it gets destroyed. Second paramter means that expose the data only while on the ui page
+    //statein is used to convert flow into state flow. Its parameters are first where state flow is tied to the viewmodel,
+    //meaning if viewmodel gets destroyed, it gets destroyed. Second parameter means that expose the data only while on the ui page
     // and if we leave that particular page using it then stop giving the data but wait 5 seconds before you do
-    //lastly is just the inital value before the flow starts
+    //lastly is just the initial value before the flow starts
     val totalIncome: StateFlow<Double> = repository.totalIncomeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     // purpose of stateflow and state in is:
@@ -28,18 +28,18 @@ class DashboardViewModel(private val repository: TransactionRepository) : ViewMo
     // technically using only flow could work but this is best practice apparently
 
     // Temporary function just to test if the UI reacts!
-    fun addDummyTransaction() {
+    // Test the SMS Parser!
+    fun simulateIncomingSms() {
         viewModelScope.launch {
-            repository.insertTransaction(
-                Transaction(
-                    rawDescription = "Test Coffee",
-                    amount = 150.0,
-                    timestamp = System.currentTimeMillis(),
-                    type = "DEBIT",
-                    category = "Food",
-                    source = "MANUAL"
-                )
+            val fakeSmsBody = "Dear Customer, Rs. 450.00 has been debited from account **1234 to STARBUCKS@UPI on 04-May-26."
+            val parsedTransaction = com.example.financetracker.utils.SmsParser.parseMessage(
+                messageBody = fakeSmsBody,
+                timestamp = System.currentTimeMillis()
             )
+
+            if (parsedTransaction != null) {
+                repository.insertTransaction(parsedTransaction)
+            }
         }
     }
 }

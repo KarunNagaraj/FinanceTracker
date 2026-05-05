@@ -79,11 +79,11 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 
         // Temporary Button to test the database
         Button(
-            onClick = { viewModel.addDummyTransaction() },
+            onClick = { viewModel.simulateIncomingSms() },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = BrandBlue)
         ) {
-            Text("Test Database: Add ₹150 Expense")
+            Text("Simulate Bank SMS")
         }
     }
 }
