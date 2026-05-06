@@ -13,6 +13,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+//Android BroadcastReceiver is a System Entry Point. It is an invisible, background trigger that operates completely outside of your app's normal UI flow.
+// It doesn't have a screen, and it doesn't have a ViewModel. Therefore, it is forced to act as the "Orchestrator"—it has to wake up, call the parser (SmsParser), and then call the database (Repository) itself
+// because there is no other layer available to do it.
 class SmsReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {

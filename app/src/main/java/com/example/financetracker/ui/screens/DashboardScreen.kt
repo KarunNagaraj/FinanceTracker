@@ -20,6 +20,11 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     val expenses by viewModel.totalExpenses.collectAsState()
     val income by viewModel.totalIncome.collectAsState()
 
+    // NEW: Format the raw doubles into clean, 2-decimal currency strings
+    val formattedExpenses = "₹%,.2f".format(expenses)
+    val formattedIncome = "₹%,.2f".format(income)
+    val formattedSavings = "₹%,.2f".format(income - expenses)
+
     val gradientBrush = Brush.verticalGradient(listOf(BrandBlue, BrandPurple))
 
     Column(
@@ -42,8 +47,9 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text("Total Monthly Spending", color = TextSecondary)
-                // LIVE DATA HERE
-                Text("₹${expenses}", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
+
+                // LIVE DATA HERE - Updated with formatting
+                Text(formattedExpenses, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -70,9 +76,9 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            MetricCard("Income", "₹${income}", IncomeGreen, Modifier.weight(1f))
-            MetricCard("Expense", "₹${expenses}", ExpenseRed, Modifier.weight(1f))
-            MetricCard("Savings", "₹${income - expenses}", SavingsBlue, Modifier.weight(1f))
+            MetricCard("Income", formattedIncome, IncomeGreen, Modifier.weight(1f))
+            MetricCard("Expense", formattedExpenses, ExpenseRed, Modifier.weight(1f))
+            MetricCard("Savings", formattedSavings, SavingsBlue, Modifier.weight(1f))
         }
 
         Spacer(modifier = Modifier.height(24.dp))

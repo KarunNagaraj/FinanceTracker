@@ -77,7 +77,14 @@ fun MainScreen() {
             }
             composable(Screen.Transactions.route) { TransactionsScreen() }
             composable(Screen.Insights.route) { InsightsScreen() }
-            composable(Screen.Settings.route) { SettingsScreen() }
+            composable(Screen.Settings.route) {
+                val context = LocalContext.current
+                val database = AppDatabase.getDatabase(context)
+                val repository = TransactionRepository(database.transactionDao())
+                val classifier = com.example.financetracker.utils.TransactionClassifier(context)
+
+                SettingsScreen(repository = repository, classifier = classifier)
+            }
         }
     }
 }
