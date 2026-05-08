@@ -68,5 +68,10 @@ dependencies {
 // Lifecycle & ViewModel Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
-    implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
+
+// Google's brand new LiteRT (Fixes the duplicate namespace crash)
+    implementation("com.google.ai.edge.litert:litert:1.0.1")
+
+    // We still need the standard TF-Ops for our TextVectorization math
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
 }

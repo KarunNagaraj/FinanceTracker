@@ -1,52 +1,77 @@
 package com.example.financetracker.utils
 
-
 import android.content.Context
-import android.util.Log
-import org.tensorflow.lite.task.text.nlclassifier.NLClassifier
-import java.io.IOException
+
+import org.tensorflow.lite.Interpreter
+import java.io.FileInputStream
+import java.nio.channels.FileChannel
 
 class TransactionClassifier(private val context: Context) {
 
-    private var classifier: NLClassifier? = null
+    private var interpreter: Interpreter? = null
+    private var labels = listOf<String>()
 
     init {
-        setupModel()
-    }
-
-    private fun setupModel() {
         try {
-            // This looks inside your app's 'assets' folder for the model
-            classifier = NLClassifier.createFromFile(context, "model.tflite")
-            Log.d("ML_Engine", "TFLite Model loaded successfully!")
-        } catch (e: IOException) {
-            Log.e("ML_Engine", "Failed to load TFLite model. Using fallback logic.", e)
-            classifier = null
+            // 1. Read the labels.txt file so we know what the output numbers mean
+            labels = context.assets.open("labels.txt").bufferedReader().readLines()
+
+            // 2. Load the custom_brain.tflite file into memory
+            val assetFileDescriptor = context.assets.openFd("custom_brain.tflite")
+            val fileInputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
+            val fileChannel = fileInputStream.channel
+            val modelBuffer = fileChannel.map(
+                FileChannel.MapMode.READ_ONLY,
+                assetFileDescriptor.startOffset,
+                assetFileDescriptor.declaredLength
+            )
+
+            // 3. Fire up the TensorFlow engine
+            val options = Interpreter.Options()
+            interpreter = Interpreter(modelBuffer, options)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // If the model fails to load, it will just safely fallback to "Other"
         }
     }
 
-    fun predictCategory(rawDescription: String): String {
-        // If the model is loaded, use it!
-        classifier?.let { model ->
-            val results = model.classify(rawDescription)
-            // TFLite returns a list of probabilities. We want the one with the highest score.
-            val topCategory = results.maxByOrNull { it.score }
-            if (topCategory != null && topCategory.score > 0.5f) { // 50% confidence threshold
-                return topCategory.label
+    fun predictCategory(merchant: String): String {
+        if (interpreter == null || labels.isEmpty()) return "Other"
+
+        // The model expects an Array of Strings as the input
+        val input = arrayOf(merchant.uppercase())
+
+        // The model outputs a 2D Array of probabilities (e.g. [0.01, 0.95, 0.04...])
+        // The size of the output perfectly matches the number of categories in labels.txt
+        val output = Array(1) { FloatArray(labels.size) }
+
+        try {
+            // 4. Run the data through the neural network!
+            interpreter?.run(input, output)
+
+            val probabilities = output[0]
+            var highestProbability = 0f
+            var winningIndex = -1
+
+            // 5. Loop through the results to find the highest percentage
+            for (i in probabilities.indices) {
+                if (probabilities[i] > highestProbability) {
+                    highestProbability = probabilities[i]
+                    winningIndex = i
+                }
             }
+
+            // 6. If the AI is at least 30% confident, return the category.
+            // Otherwise, it's too confusing, so dump it in "Other"
+            if (winningIndex != -1 && highestProbability > 0.3f) {
+                return labels[winningIndex]
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
 
-        // --- FALLBACK LOGIC ---
-        // If you haven't put a model.tflite file in your assets folder yet,
-        // or the AI is unsure, we use a basic keyword fallback so your app still works today.
-        val text = rawDescription.lowercase()
-        return when {
-            text.contains("zomato") || text.contains("swiggy") || text.contains("starbucks") -> "Food & Dining"
-            text.contains("amazon") || text.contains("flipkart") || text.contains("myntra") -> "Shopping"
-            text.contains("uber") || text.contains("ola") || text.contains("irctc") -> "Transport"
-            text.contains("netflix") || text.contains("spotify") || text.contains("prime") -> "Entertainment"
-            text.contains("jio") || text.contains("airtel") || text.contains("bescom") -> "Bills & Utilities"
-            else -> "Other"
-        }
+        return "Other"
     }
 }

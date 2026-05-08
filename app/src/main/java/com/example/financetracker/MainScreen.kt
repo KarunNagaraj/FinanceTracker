@@ -76,7 +76,14 @@ fun MainScreen() {
                 DashboardScreen(viewModel = viewModel)
             }
             composable(Screen.Transactions.route) { TransactionsScreen() }
-            composable(Screen.Insights.route) { InsightsScreen() }
+            // UPDATE THIS LINE:
+            composable(Screen.Insights.route) {
+                val context = LocalContext.current
+                val database = AppDatabase.getDatabase(context)
+                val repository = TransactionRepository(database.transactionDao())
+
+                InsightsScreen(repository = repository)
+            }
             composable(Screen.Settings.route) {
                 val context = LocalContext.current
                 val database = AppDatabase.getDatabase(context)

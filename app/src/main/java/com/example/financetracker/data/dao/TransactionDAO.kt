@@ -27,4 +27,13 @@ interface TransactionDao {
 
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM transactions WHERE type = 'CREDIT'")
     fun getTotalIncomeFlow(): Flow<Double>
+    // NEW: The Aggregation Query for the Chart
+    @Query("SELECT category, SUM(amount) as totalAmount FROM transactions WHERE type = 'DEBIT' GROUP BY category ORDER BY totalAmount DESC")
+    fun getSpendingByCategory(): Flow<List<CategoryTotal>>
 }
+
+// NEW: A simple container to hold the grouped result
+data class CategoryTotal(
+    val category: String,
+    val totalAmount: Double
+)
