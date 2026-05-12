@@ -1,77 +1,52 @@
 package com.example.financetracker.utils
 
-import android.content.Context
+import com.example.financetracker.data.repository.TransactionRepository
+import java.util.Calendar
 
-import org.tensorflow.lite.Interpreter
-import java.io.FileInputStream
-import java.nio.channels.FileChannel
+class TransactionClassifier(private val repository: TransactionRepository) {
 
-class TransactionClassifier(private val context: Context) {
+    // LEVEL 2: Global Dictionary
+    private val globalKeywords = mapOf(
+        "SWIGGY" to "Food & Dining",
+        "ZOMATO" to "Food & Dining",
+        "ZEPTO" to "Groceries",
+        "BLINKIT" to "Groceries",
+        "IOCL" to "Fuel",
+        "HPCL" to "Fuel",
+        "UBER" to "Transport",
+        "OLA" to "Transport",
+        "AMAZON" to "Shopping",
+        "D2D" to "Groceries"
+    )
 
-    private var interpreter: Interpreter? = null
-    private var labels = listOf<String>()
+    suspend fun categorizeTransaction(merchant: String, amount: Double, timestamp: Long): String {
+        val upperMerchant = merchant.uppercase()
 
-    init {
-        try {
-            // 1. Read the labels.txt file so we know what the output numbers mean
-            labels = context.assets.open("labels.txt").bufferedReader().readLines()
-
-            // 2. Load the custom_brain.tflite file into memory
-            val assetFileDescriptor = context.assets.openFd("custom_brain.tflite")
-            val fileInputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
-            val fileChannel = fileInputStream.channel
-            val modelBuffer = fileChannel.map(
-                FileChannel.MapMode.READ_ONLY,
-                assetFileDescriptor.startOffset,
-                assetFileDescriptor.declaredLength
-            )
-
-            // 3. Fire up the TensorFlow engine
-            val options = Interpreter.Options()
-            interpreter = Interpreter(modelBuffer, options)
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // If the model fails to load, it will just safely fallback to "Other"
-        }
-    }
-
-    fun predictCategory(merchant: String): String {
-        if (interpreter == null || labels.isEmpty()) return "Other"
-
-        // The model expects an Array of Strings as the input
-        val input = arrayOf(merchant.uppercase())
-
-        // The model outputs a 2D Array of probabilities (e.g. [0.01, 0.95, 0.04...])
-        // The size of the output perfectly matches the number of categories in labels.txt
-        val output = Array(1) { FloatArray(labels.size) }
-
-        try {
-            // 4. Run the data through the neural network!
-            interpreter?.run(input, output)
-
-            val probabilities = output[0]
-            var highestProbability = 0f
-            var winningIndex = -1
-
-            // 5. Loop through the results to find the highest percentage
-            for (i in probabilities.indices) {
-                if (probabilities[i] > highestProbability) {
-                    highestProbability = probabilities[i]
-                    winningIndex = i
-                }
+        // LEVEL 1: User Memory (Highest Priority)
+        val userRules = repository.getAllRules()
+        for (rule in userRules) {
+            if (upperMerchant.contains(rule.merchantPattern.uppercase())) {
+                return rule.category
             }
-
-            // 6. If the AI is at least 30% confident, return the category.
-            // Otherwise, it's too confusing, so dump it in "Other"
-            if (winningIndex != -1 && highestProbability > 0.3f) {
-                return labels[winningIndex]
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
 
-        return "Other"
+        // LEVEL 2: Global Dictionary
+        for ((keyword, category) in globalKeywords) {
+            if (upperMerchant.contains(keyword)) {
+                return category
+            }
+        }
+
+        // LEVEL 3: Contextual Heuristics
+        val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val isWeekend = dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+
+        if (amount < 100.0) return "Petty"
+        if (isWeekend && hourOfDay in 18..23 && amount > 500.0) return "Dining / Weekend"
+
+        // LEVEL 4: Fallback
+        return "Uncategorized"
     }
 }

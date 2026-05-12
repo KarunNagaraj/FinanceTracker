@@ -30,6 +30,9 @@ interface TransactionDao {
     // NEW: The Aggregation Query for the Chart
     @Query("SELECT category, SUM(amount) as totalAmount FROM transactions WHERE type = 'DEBIT' GROUP BY category ORDER BY totalAmount DESC")
     fun getSpendingByCategory(): Flow<List<CategoryTotal>>
+    // NEW: The Retroactive Magic Trick
+    @Query("UPDATE transactions SET category = :newCategory, isManuallyCorrected = 1 WHERE rawDescription = :merchantName AND category = 'Uncategorized'")
+    suspend fun updatePastUncategorized(merchantName: String, newCategory: String)
 }
 
 // NEW: A simple container to hold the grouped result

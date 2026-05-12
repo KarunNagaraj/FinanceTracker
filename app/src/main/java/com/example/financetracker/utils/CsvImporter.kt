@@ -1,7 +1,5 @@
 package com.example.financetracker.utils
 
-
-
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -12,101 +10,183 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
 import java.util.Locale
+/*Open CSV
+   ↓
+Read each row
+   ↓
+Ignore garbage rows
+   ↓
+Extract columns
+   ↓
+Convert text → usable values
+   ↓
+Build Transaction objects
+   ↓
+Return list*/
 
 object CsvImporter {
 
-    suspend fun parseAndImport(context: Context, uri: Uri, classifier: TransactionClassifier): List<Transaction> {
+    private const val TAG = "CsvImporter"
+    private const val DEBUG_TAG = "CSV_DEBUG"
+
+    suspend fun parseAndImport(
+        context: Context,
+        uri: Uri,
+        classifier: TransactionClassifier
+    ): List<Transaction> {
+
         return withContext(Dispatchers.IO) {
+
             val transactions = mutableListOf<Transaction>()
+
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                val reader = BufferedReader(InputStreamReader(inputStream!!))
 
-                // Matches the "01/04/26" format in your bank statement
-                val dateFormat = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+                if (inputStream == null) {
+                    Log.e(TAG, "Could not open input stream")
+                    return@withContext transactions
+                }
 
-                var line: String?
+                val reader = BufferedReader(InputStreamReader(inputStream))
+
+                val dateFormat = SimpleDateFormat(
+                    "dd/MM/yy",
+                    Locale.getDefault()
+                )
+
                 var isTableStarted = false
-                var lineNumber = 0 // 1. Let's track the line number
+                var lineNumber = 0
 
-                while (reader.readLine().also { line = it } != null) {
+                while (true) {
+
+                    val line = reader.readLine() ?: break
                     lineNumber++
 
-                    // 2. X-Ray the raw text the app is receiving
-                    if (lineNumber < 25) { // Just log the first 25 lines so we don't spam the console
-                        Log.d("CSV_DEBUG", "Line $lineNumber RAW: $line")
+                    // Log first few raw lines for debugging
+                    if (lineNumber < 25) {
+                        Log.d(DEBUG_TAG, "Line $lineNumber RAW: $line")
                     }
 
+                    // Wait until table headers are found
                     if (!isTableStarted) {
-                        if (line!!.contains("Date") && line!!.contains("Narration")) {
+
+                        val hasHeaders =
+                            line.contains("Date") &&
+                                    line.contains("Narration")
+
+                        if (hasHeaders) {
                             isTableStarted = true
-                            // 3. Confirm the trigger actually woke up
-                            Log.d("CSV_DEBUG", "WAKE UP: Found Headers on line $lineNumber!")
-                        }
-                        continue
-                    }
-
-                    if (line!!.isBlank() || line!!.startsWith("*")) {
-                        continue
-                    }
-
-                    val tokens = line!!.split(",")
-
-                    // 4. X-Ray the columns. If size is 1, we know the commas are missing!
-                    Log.d("CSV_DEBUG", "Row Data -> Column Count: ${tokens.size} | Content: $tokens")
-
-                    // HDFC format has at least 6 columns (up to Deposit Amt.)
-                    if (tokens.size >= 6) {
-                        val dateString = tokens[0].trim()
-                        val merchant = tokens[1].trim()
-
-                        // In this bank format, Withdrawal is Col 4, Deposit is Col 5
-                        val withdrawalStr = tokens[4].trim()
-                        val depositStr = tokens[5].trim()
-
-                        // Convert "15/04/26" to a computer-readable Unix Timestamp
-                        val timestamp = try {
-                            dateFormat.parse(dateString)?.time ?: System.currentTimeMillis()
-                        } catch (e: Exception) {
-                            System.currentTimeMillis()
-                        }
-
-                        // Figure out if it was money in or money out
-                        var amount = 0.0
-                        var type = "DEBIT"
-
-                        if (withdrawalStr.isNotEmpty()) {
-                            amount = withdrawalStr.toDoubleOrNull() ?: 0.0
-                            type = "DEBIT"
-                        } else if (depositStr.isNotEmpty()) {
-                            amount = depositStr.toDoubleOrNull() ?: 0.0
-                            type = "CREDIT"
-                        }
-
-                        // 4. The Brain: Only process it if there is a valid amount
-                        if (amount > 0.0 && merchant.isNotEmpty()) {
-                            // Ask the ML model to categorize "ZEPTO" or "SWIGGY"
-                            val smartCategory = classifier.predictCategory(merchant)
-
-                            transactions.add(
-                                Transaction(
-                                    rawDescription = merchant,
-                                    amount = amount,
-                                    timestamp = timestamp,
-                                    type = type,
-                                    category = smartCategory,
-                                    source = "CSV"
-                                )
+                            Log.d(
+                                DEBUG_TAG,
+                                "Found headers on line $lineNumber"
                             )
                         }
+
+                        continue
                     }
+
+                    // Skip empty or footer lines
+                    if (line.isBlank() || line.startsWith("*")) {
+                        continue
+                    }
+
+                    val tokens = line.split(",")
+
+                    Log.d(
+                        DEBUG_TAG,
+                        "Column Count: ${tokens.size} | Content: $tokens"
+                    )
+
+                    // Expected minimum columns:
+                    // Date, Narration, Ref No, Value Date,
+                    // Withdrawal, Deposit
+                    if (tokens.size < 6) {
+                        continue
+                    }
+
+                    val dateString = tokens[0].trim()
+                    val merchant = tokens[1].trim()
+
+                    val withdrawalString = tokens[4].trim()
+                    val depositString = tokens[5].trim()
+
+                    val timestamp = parseTimestamp(
+                        dateString,
+                        dateFormat
+                    )
+
+                    val transactionData = extractAmountAndType(
+                        withdrawalString,
+                        depositString
+                    )
+
+                    val amount = transactionData.first
+                    val type = transactionData.second
+
+                    // Ignore invalid rows
+                    if (amount <= 0.0 || merchant.isEmpty()) {
+                        continue
+                    }
+
+                    val smartCategory = classifier.categorizeTransaction(merchant, amount, timestamp)
+
+                    val transaction = Transaction(
+                        rawDescription = merchant,
+                        amount = amount,
+                        timestamp = timestamp,
+                        type = type,
+                        category = smartCategory,
+                        source = "CSV"
+                    )
+
+                    transactions.add(transaction)
                 }
+
                 reader.close()
+
             } catch (e: Exception) {
-                Log.e("CsvImporter", "Error reading CSV", e)
+                Log.e(TAG, "Error reading CSV", e)
             }
 
-            return@withContext transactions
+            transactions
         }
+    }
+
+    private fun parseTimestamp(
+        dateString: String,
+        dateFormat: SimpleDateFormat
+    ): Long {
+
+        return try {
+            dateFormat.parse(dateString)?.time
+                ?: System.currentTimeMillis()
+
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+    private fun extractAmountAndType(
+        withdrawalString: String,
+        depositString: String
+    ): Pair<Double, String> {
+
+        if (withdrawalString.isNotEmpty()) {
+
+            val amount =
+                withdrawalString.toDoubleOrNull() ?: 0.0
+
+            return Pair(amount, "DEBIT")
+        }
+
+        if (depositString.isNotEmpty()) {
+
+            val amount =
+                depositString.toDoubleOrNull() ?: 0.0
+
+            return Pair(amount, "CREDIT")
+        }
+
+        return Pair(0.0, "DEBIT")
     }
 }

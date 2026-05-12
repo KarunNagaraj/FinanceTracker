@@ -16,6 +16,7 @@ import com.example.financetracker.data.AppDatabase
 import com.example.financetracker.data.repository.TransactionRepository
 import com.example.financetracker.ui.viewmodels.DashboardViewModel
 import com.example.financetracker.ui.viewmodels.DashboardViewModelFactory
+import com.example.financetracker.utils.TransactionClassifier
 
 //Bottom Nav bar + logic to navigate
 
@@ -68,27 +69,38 @@ fun MainScreen() {
                 val database = AppDatabase.getDatabase(context)
 
                 // 2. Create Repository & Factory
-                val repository = TransactionRepository(database.transactionDao())
+                val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
                 val factory = DashboardViewModelFactory(repository)
 
                 // 3. Get ViewModel & Pass to Screen
                 val viewModel: DashboardViewModel = viewModel(factory = factory)
                 DashboardScreen(viewModel = viewModel)
             }
-            composable(Screen.Transactions.route) { TransactionsScreen() }
+            // Replace the old Transactions composable with this:
+            composable(Screen.Transactions.route) {
+                val context = LocalContext.current
+                val database = AppDatabase.getDatabase(context)
+                val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
+                val factory = com.example.financetracker.ui.viewmodels.TransactionsViewModelFactory(repository)
+
+                val viewModel: com.example.financetracker.ui.viewmodels.TransactionsViewModel = viewModel(factory = factory)
+
+                TransactionsScreen(viewModel = viewModel)
+            }
             // UPDATE THIS LINE:
             composable(Screen.Insights.route) {
                 val context = LocalContext.current
                 val database = AppDatabase.getDatabase(context)
-                val repository = TransactionRepository(database.transactionDao())
+                val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
 
                 InsightsScreen(repository = repository)
             }
             composable(Screen.Settings.route) {
                 val context = LocalContext.current
                 val database = AppDatabase.getDatabase(context)
-                val repository = TransactionRepository(database.transactionDao())
-                val classifier = com.example.financetracker.utils.TransactionClassifier(context)
+                val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
+                // Change from TransactionClassifier(context)
+                val classifier = TransactionClassifier(repository)
 
                 SettingsScreen(repository = repository, classifier = classifier)
             }

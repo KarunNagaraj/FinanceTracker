@@ -27,10 +27,8 @@ class SmsReceiver : BroadcastReceiver() {
 
             // Grab our database instance
             val database = AppDatabase.getDatabase(context)
-            val repository = TransactionRepository(database.transactionDao())
-
-            // 1. Initialize our new ML Brain
-            val classifier = TransactionClassifier(context)
+            val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
+            val classifier = TransactionClassifier(repository)
 
             val pendingResult = goAsync()
 
@@ -45,7 +43,11 @@ class SmsReceiver : BroadcastReceiver() {
 
                         if (parsedData != null) {
                             // 2. Ask the ML model to categorize the merchant!
-                            val smartCategory = classifier.predictCategory(parsedData.rawDescription)
+                            val smartCategory = classifier.categorizeTransaction(
+                                merchant = parsedData.rawDescription,
+                                amount = parsedData.amount,
+                                timestamp = parsedData.timestamp
+                            )
 
                             // 3. Create the final transaction with the smart category
                             val finalTransaction = parsedData.copy(category = smartCategory)
