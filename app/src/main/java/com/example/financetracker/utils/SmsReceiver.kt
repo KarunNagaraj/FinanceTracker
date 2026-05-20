@@ -27,7 +27,7 @@ class SmsReceiver : BroadcastReceiver() {
 
             // Grab our database instance
             val database = AppDatabase.getDatabase(context)
-            val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao())
+            val repository = TransactionRepository(database.transactionDao(), database.merchantRuleDao(), database.customCategoryDao())
             val classifier = TransactionClassifier(repository)
 
             val pendingResult = goAsync()
@@ -46,7 +46,8 @@ class SmsReceiver : BroadcastReceiver() {
                             val smartCategory = classifier.categorizeTransaction(
                                 merchant = parsedData.rawDescription,
                                 amount = parsedData.amount,
-                                timestamp = parsedData.timestamp
+                                timestamp = parsedData.timestamp,
+                                type = parsedData.type
                             )
 
                             // 3. Create the final transaction with the smart category

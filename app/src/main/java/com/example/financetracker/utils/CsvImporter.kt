@@ -128,7 +128,7 @@ object CsvImporter {
                         continue
                     }
 
-                    val smartCategory = classifier.categorizeTransaction(merchant, amount, timestamp)
+                    val smartCategory = classifier.categorizeTransaction(merchant, amount, timestamp, type)
 
                     val transaction = Transaction(
                         rawDescription = merchant,

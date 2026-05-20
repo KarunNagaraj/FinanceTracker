@@ -4,17 +4,21 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.financetracker.data.dao.CustomCategoryDao
 import com.example.financetracker.data.dao.MerchantRuleDao
 import com.example.financetracker.data.dao.TransactionDao
 import com.example.financetracker.data.entity.MerchantRule
 import com.example.financetracker.data.entity.Transaction
+import com.example.financetracker.data.entity.CustomCategory
+
 
 @Database(
     entities = [
         Transaction::class,
-        MerchantRule::class
+        MerchantRule::class,
+        CustomCategory::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun merchantRuleDao(): MerchantRuleDao
 
+    abstract fun customCategoryDao(): CustomCategoryDao
     companion object {
 
         @Volatile

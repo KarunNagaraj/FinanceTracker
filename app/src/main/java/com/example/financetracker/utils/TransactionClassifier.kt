@@ -19,8 +19,11 @@ class TransactionClassifier(private val repository: TransactionRepository) {
         "D2D" to "Groceries"
     )
 
-    suspend fun categorizeTransaction(merchant: String, amount: Double, timestamp: Long): String {
+    suspend fun categorizeTransaction(merchant: String, amount: Double, timestamp: Long, type: String): String {
         val upperMerchant = merchant.uppercase()
+        if (type=="CREDIT"){
+            return "Income"
+        }
 
         // LEVEL 1: User Memory (Highest Priority)
         val userRules = repository.getAllRules()
